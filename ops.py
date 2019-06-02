@@ -1,8 +1,9 @@
 import mpmath
 import calc2
 
-mpmath.mp.dps = 100
+mpmath.mp.dps = 50
 mpmath.mp.frac = int(mpmath.mp.dps * 10 / 3)
+
 
 class OpList:
     _r2drg_formula = {'deg': lambda r: r / mpmath.pi * 180,
@@ -33,26 +34,42 @@ class OpList:
     def _drg2r(self, value):
         return OpList._drg2r_formula[self._drg_mode](value)
 
-    def __getitem__(self, item):
+    def get_left_bracket(self, item):
+        if item in ['(', '[', '{']:
+            return calc2.get_left_bracket_op()
+        raise KeyError
+
+    def get_right_bracket(self, item):
+        if item in [')', ']', '}']:
+            return calc2.get_right_bracket_op()
+        raise KeyError
+
+    def get_const(self, item):
         return {'i': mpmath.mpc(1j),
                 'j': mpmath.mpc(1j),
                 'pi': mpmath.pi,
                 'e': mpmath.e,
+                }[item]
 
-                **{k: calc2.UnaryOperator(s, f, 8)
+    def get_unary(self, item):
+        return {**{k: calc2.UnaryOperator(s, f, 8)
                    for k, s, f in [('abs',   '|a|',   mpmath.fabs),
-                                   ('neg',   '+/-',   mpmath.fneg),
+                                   ('-',     '+/-',   mpmath.fneg),
                                    ('fac',   'n!',    mpmath.factorial),
-                                   ('sqrt',  '_/',    mpmath.sqrt),
+                                   ('sqrt',  'sqrt',    mpmath.sqrt),
+                                   (',/',    'sqrt',    mpmath.sqrt),
                                    ('ln',    'ln',    mpmath.ln),
                                    ('lg',    'log10', mpmath.log10),
                                    ('exp',   'e^',    mpmath.exp),
                                    ]
                    },
-                'rec': calc2.UnaryOperator('1/',
-                                           lambda x: 1 / x,
-                                           8),
-                **{k: calc2.UnaryOperator(k, lambda x: v(self._drg2r(x)), 8)
+                'pcn': calc2.UnaryOperator('a%',
+                                            lambda x: x / 100,
+                                            8),
+                '+': calc2.UnaryOperator('#',
+                                         lambda x: x,
+                                         1),
+                **{k: calc2.UnaryOperator(k, lambda x: 1/v(self._drg2r(x)), 8)
                    for k, v in {'sin': mpmath.sin,
                                 'cos': mpmath.cos,
                                 'tan': mpmath.tan,
@@ -60,7 +77,7 @@ class OpList:
                                 'sec': mpmath.sec,
                                 'csc': mpmath.csc}.items()
                    },
-                **{k: calc2.UnaryOperator(k, lambda x: self._r2drg(v(x)), 8)
+                **{k: calc2.UnaryOperator(k, lambda x: self._r2drg(1/v(x)), 8)
                    for k, v in {'asin': mpmath.asin,
                                 'acos': mpmath.acos,
                                 'atan': mpmath.atan,
@@ -81,15 +98,20 @@ class OpList:
                                 'acoth': mpmath.acoth,
                                 'asech': mpmath.asech,
                                 'acsch': mpmath.acsch}.items()
-                   },
+                   }
+                }[item]
 
-                '+': calc2.BinaryOperator('+', mpmath.fadd, 2),
+    def get_binary(self, item):
+        return {'+': calc2.BinaryOperator('+', mpmath.fadd, 2),
                 '-': calc2.BinaryOperator('-', mpmath.fsub, 2),
                 '*': calc2.BinaryOperator('*', mpmath.fmul, 3),
+                'x': calc2.BinaryOperator('*', mpmath.fmul, 3),
                 '/': calc2.BinaryOperator('/', mpmath.fdiv, 3),
+                '%': calc2.BinaryOperator('mod', mpmath.fmod, 3),
                 'mod': calc2.BinaryOperator('mod', mpmath.fmod, 3),
                 '^': calc2.BinaryOperator('^', mpmath.power, 4),
-                'rt': calc2.BinaryOperator('y_/x', lambda y, x: mpmath.root(x, y), 4),
+                'rt': calc2.BinaryOperator('y,/x', lambda y, x: mpmath.root(x, y), 4),
+                ',/': calc2.BinaryOperator('y,/x', lambda y, x: mpmath.root(x, y), 4),
                 'log': calc2.BinaryOperator('blogA', lambda b, a: mpmath.log(a, b), 4),
                 'P': calc2.BinaryOperator('nPr',
                                           lambda n, r: mpmath.factorial(n) / mpmath.factorial(n - r),
@@ -103,3 +125,34 @@ class OpList:
                                           6),
                 }[item]
 
+    @property
+    def postpos_unary_dict(self):
+        return {'!': 'fac',
+                '%': 'pcn',
+                }
+
+    @property
+    def connector(self):
+        return self.get_binary('*')
+
+    @property
+    def head(self):
+        return self.get_unary('+')
+
+    def string_to_real(self, s):
+        return mpmath.mpf(s)
+
+    def is_number(self, n):
+        return isinstance(n, mpmath.mpf) or isinstance(n, mpmath.mpc)
+
+    def is_left_bracket(self, o):
+        return isinstance(o, calc2.LeftBracket)
+
+    def is_right_bracket(self, o):
+        return isinstance(o, calc2.RightBracket)
+
+    def is_unary_operator(self, o):
+        return isinstance(o, calc2.UnaryOperator)
+
+    def is_binary_operator(self, o):
+        return isinstance(o, calc2.BinaryOperator)

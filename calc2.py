@@ -30,7 +30,7 @@ class Operator:
 class UnaryOperator(Operator):
     def __init__(self, display, compute, out_stack_rank, in_stack_rank=None):
         Operator.__init__(self, display, out_stack_rank,
-                          in_stack_rank if in_stack_rank is not None else out_stack_rank)
+                          in_stack_rank if in_stack_rank is not None else out_stack_rank + 1)
         self.compute = compute
 
     def calc(self, arg1):
@@ -57,7 +57,7 @@ class BinaryOperator(Operator):
 
 class LeftBracket(Operator):
     def __init__(self):
-        Operator.__init__(self, '(', -1, 10)
+        Operator.__init__(self, '(', -2, 9)
 
     def calc_from_stack(self, _, __):
         raise TypeError
@@ -65,15 +65,15 @@ class LeftBracket(Operator):
 
 class RightBracket(Operator):
     def __init__(self):
-        Operator.__init__(self, ')', -1, 0)
+        Operator.__init__(self, ')', 10, -1)
 
     def calc_from_stack(self, _, stack_operators: list):
-        assert isinstance(stack_operators.pop(), LeftBracket)
+        assert isinstance(stack_operators.pop(), LeftBracket), ''
 
 
 class __EndOperator(Operator):
     def __init__(self):
-        Operator.__init__(self, '=', 'impossible to get here', -1)
+        Operator.__init__(self, '=', 'impossible to get here', -10)
 
     def calc_from_stack(self, stack_operands: list, stack_operators: list):
         raise TypeError
