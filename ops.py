@@ -9,12 +9,25 @@ class OpList:
     _r2drg_formula = {'deg': lambda r: r / mpmath.pi * 180,
                       'rad': lambda r: r,
                       'grad': lambda r: r / mpmath.pi * 200}
-    _drg2r_formula = {'deg': lambda d: d * mpmath.pi / 180,
-                      'rad': lambda r: r,
-                      'grad': lambda g: g * mpmath.pi / 200}
+    _drg2r_formula = {'deg': lambda d: d / 180,
+                      'rad': lambda r: r / mpmath.pi,
+                      'grad': lambda g: g / 200}
 
     def __init__(self):
         self._drg_mode = 'deg'
+        self._mem = dict()
+
+    def __getitem__(self, key):
+        try:
+            return self._mem[key]
+        except KeyError:
+            return mpmath.mpf(0)
+
+    def __setitem__(self, key, val):
+        self._mem[key] = val
+
+    def num_to_string(self, num):
+        return str(num)
 
     @property
     def drg(self):
@@ -54,7 +67,7 @@ class OpList:
     def get_unary(self, item):
         return {**{k: calc2.UnaryOperator(s, f, 8)
                    for k, s, f in [('abs',   '|a|',   mpmath.fabs),
-                                   ('-',     '+/-',   mpmath.fneg),
+                                   ('-',     '-',   mpmath.fneg),
                                    ('fac',   'n!',    mpmath.factorial),
                                    ('sqrt',  'sqrt',    mpmath.sqrt),
                                    (',/',    'sqrt',    mpmath.sqrt),
@@ -69,15 +82,16 @@ class OpList:
                 '+': calc2.UnaryOperator('#',
                                          lambda x: x,
                                          1),
-                **{k: calc2.UnaryOperator(k, lambda x: 1/v(self._drg2r(x)), 8)
-                   for k, v in {'sin': mpmath.sin,
-                                'cos': mpmath.cos,
-                                'tan': mpmath.tan,
-                                'cot': mpmath.cot,
-                                'sec': mpmath.sec,
-                                'csc': mpmath.csc}.items()
+                **{k: calc2.UnaryOperator(k, (lambda u: lambda x: u(self._drg2r(x)))(v), 8)
+                   for k, v in {'sin': mpmath.sinpi,
+                                'cos': mpmath.cospi,
+                                'tan': lambda x: mpmath.sinpi(x) / mpmath.cospi(x),
+                                'cot': lambda x: mpmath.cospi(x) / mpmath.sinpi(x),
+                                'sec': lambda x: 1 / mpmath.cospi(x),
+                                'csc': lambda x: 1 / mpmath.sinpi(x),
+                                }.items()
                    },
-                **{k: calc2.UnaryOperator(k, lambda x: self._r2drg(1/v(x)), 8)
+                **{k: calc2.UnaryOperator(k, (lambda u: lambda x: self._r2drg(1/v(x)))(v), 8)
                    for k, v in {'asin': mpmath.asin,
                                 'acos': mpmath.acos,
                                 'atan': mpmath.atan,

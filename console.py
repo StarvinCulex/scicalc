@@ -1,8 +1,10 @@
 import formtrans
 import calc2
 import ops
+import re
 
-if __name__ == '__main__':
+
+def main():
     op_list = ops.OpList()
     print('= scicalc console =')
     while True:
@@ -17,11 +19,12 @@ if __name__ == '__main__':
                   '  ? op    : print operator list\n'
                   '  ? func  : print function list\n'
                   '  ? const : print all constants\n'
+                  '  ? var   : print tutorials about variables\n'
                   '  drg     : display angel unit\n'
                   '  deg     : turn angel unit into DEG\n'
                   '  rad     : turn angel unit into RAD\n'
                   '  grad    : turn angel unit into GRAD\n'
-                  '  quit    : exit this program')
+                  '  quit    : exit this program\n')
         elif line == '? op':
             print('- operators -\n'
                   '  + A             : A itself\n'
@@ -39,7 +42,7 @@ if __name__ == '__main__':
                   '  n P m           : P(n, m); n!/(n-m)!\n'
                   '  n C m           : C(n, m); n!/(m!*(n-m)!)\n'
                   '  a E b           : a * 10 ^ b\n'
-                  '  p %     : pcn p : p / 100')
+                  '  p %     : pcn p : p / 100\n')
         elif line == '? func':
             print('- power/exponential/logarithmic functions -\n'
                   '  sqrt X  : ,/ X  : square root of X; X^0.5\n'
@@ -53,12 +56,24 @@ if __name__ == '__main__':
                   '- hyperbolic functions -\n'
                   '  sinh : cosh : tanh : coth : sech : csch\n'
                   '- inverse hyperbolic functions -\n'
-                  '  asinh: acosh: atanh: acoth: asech: acsch')
+                  '  asinh: acosh: atanh: acoth: asech: acsch\n')
         elif line == '? const':
             print('- constants -\n'
                   '    i    :    j   : the imaginary unit\n'
                   '    pi            : =3.1415926...\n'
-                  '    e             : natural constant; =2.71828...')
+                  '    e             : natural constant; =2.71828...\n')
+        elif line == '? var':
+            print('- variable system -\n'
+                  '  You can use variables in formula by its name.\n'
+                  "  Strings beginning with $ and following English alphabets\n"
+                  "  or Arabic numerals or underline are valid variable names.\n"
+                  "  (e.g. $1, $1A2b_, $sin)\n"
+                  '- last answer -\n'
+                  '  Every anwser will be saved automatically\n'
+                  "  in variable ~ .\n"
+                  "- modify variables -\n"
+                  "  <variable> = <formula> : let variable be the value of formula\n"
+                  "  <var> [+=][-=][*=][/=] <fm> : <var> = <var> [+][-][*][/] <fm>\n")
         elif line == 'drg':
             print('-', op_list.drg)
         elif line in ['deg', 'rad', 'grad']:
@@ -67,8 +82,36 @@ if __name__ == '__main__':
         elif line == 'quit':
             break
         else:
+            if line.find('=') != -1:
+                head = line[:line.find('=')]
+                try:
+                    f = {'+': lambda x, y: x + y,
+                         '-': lambda x, y: x - y,
+                         '*': lambda x, y: x * y,
+                         '/': lambda x, y: x / y,
+                         }[head[-1]]
+                    head = head[:-1]
+                except KeyError:
+                    f = lambda x, y: y
+                head = head.strip()
+                if re.match(formtrans.var_format, head) is None:
+                    raise ValueError('Invalid var name %s' % head)
+                formula = line[line.find('=') + 1:]
+            else:
+                head = None
+                formula = line
+                f = None
             try:
-                p = formtrans.translate(line, op_list)
-                print('<', calc2.calc(p))
-            except Exception as e:
-                print('- %s: %s' % (type(e), e))
+                form = formtrans.translate(formula, op_list)
+                p = calc2.calc(form)
+                if head is not None:
+                    op_list[head] = f(op_list[head], p)
+                op_list[formtrans.ans] = p
+                print('<', op_list.num_to_string(p))
+            except ZeroDivisionError:
+                print('- division by zero')
+            except Exception:
+                print('- syntax error')
+
+print('.')
+main()

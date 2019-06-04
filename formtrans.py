@@ -1,7 +1,11 @@
 import ops
 import re
 
-__atom_pattern = re.compile(r'\d+\.?\d*'
+__atom_pattern = re.compile(r'~'
+                            r'|'
+                            r'\$[A-Za-z0-9_]+'
+                            r'|'
+                            r'\d+\.?\d*'
                             r'|'
                             r'_?[+\-*/%!^()\[\]{}]'
                             r'|'
@@ -9,6 +13,10 @@ __atom_pattern = re.compile(r'\d+\.?\d*'
                             r'|'
                             r'\s+'
                             )
+
+var_format = re.compile(r'~|\$[A-Za-z0-9]$')
+
+ans = '~'
 
 
 def __try_get(key, *funcs):
@@ -21,6 +29,12 @@ def __try_get(key, *funcs):
 
 
 def translate(formula_str: str, oplist: ops.OpList)-> list:
+    def _get_var(s):
+        if re.match(r'~|\$[A-Za-z0-9_]$', s) is not None:
+            return oplist[s]
+        else:
+            raise KeyError
+
     origin_list = re.findall(__atom_pattern, formula_str)
     formula = [oplist.head]
     for piece in origin_list:
@@ -34,7 +48,7 @@ def translate(formula_str: str, oplist: ops.OpList)-> list:
                 except KeyError:
                     try:
                         t = __try_get(piece, oplist.get_left_bracket, oplist.get_const,
-                                      oplist.string_to_real, oplist.get_unary)
+                                      oplist.string_to_real, oplist.get_unary, _get_var)
                         formula.append(oplist.connector)
                         formula.append(t)
                     except KeyError:
@@ -50,10 +64,6 @@ def translate(formula_str: str, oplist: ops.OpList)-> list:
                                 break
             else:
                 formula.append(__try_get(piece, oplist.get_unary, oplist.get_const, oplist.string_to_real,
-                                         oplist.get_left_bracket, oplist.get_right_bracket))
+                                         oplist.get_left_bracket, oplist.get_right_bracket, _get_var))
     return formula
-
-
-
-
 
