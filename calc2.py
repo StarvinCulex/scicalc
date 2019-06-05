@@ -5,7 +5,7 @@ class Operator:
         self.display = display
 
     def __str__(self):
-        return "[%s]" % self.display
+        return "<%s>" % self.display
 
     def __gt__(self, other):
         if isinstance(other, Operator):
@@ -57,7 +57,7 @@ class BinaryOperator(Operator):
 
 class LeftBracket(Operator):
     def __init__(self):
-        Operator.__init__(self, '(', -2, 9)
+        Operator.__init__(self, '(', -99, 99)
 
     def calc_from_stack(self, _, __):
         raise TypeError
@@ -65,7 +65,7 @@ class LeftBracket(Operator):
 
 class RightBracket(Operator):
     def __init__(self):
-        Operator.__init__(self, ')', 10, -1)
+        Operator.__init__(self, ')', 100, -98)
 
     def calc_from_stack(self, _, stack_operators: list):
         assert isinstance(stack_operators.pop(), LeftBracket), ''
@@ -73,7 +73,7 @@ class RightBracket(Operator):
 
 class __EndOperator(Operator):
     def __init__(self):
-        Operator.__init__(self, '=', 'impossible to get here', -10)
+        Operator.__init__(self, '=', 'impossible to get here', -100)
 
     def calc_from_stack(self, stack_operands: list, stack_operators: list):
         raise TypeError

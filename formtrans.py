@@ -1,22 +1,22 @@
 import ops
 import re
 
-__atom_pattern = re.compile(r'~'
+__atom_pattern = re.compile(r'@'
                             r'|'
                             r'\$[A-Za-z0-9_]+'
                             r'|'
                             r'\d+\.?\d*'
                             r'|'
-                            r'_?[+\-*/%!^()\[\]{}]'
+                            r'_?[+\-*/%!^()\[\]{},;~]'
                             r'|'
                             r'[A-Za-z]+'
                             r'|'
                             r'\s+'
                             )
 
-var_format = re.compile(r'~|\$[A-Za-z0-9]$')
+var_format = re.compile(r'@|\$[A-Za-z0-9]$')
 
-ans = '~'
+ans = '@'
 
 
 def __try_get(key, *funcs):
@@ -30,7 +30,7 @@ def __try_get(key, *funcs):
 
 def translate(formula_str: str, oplist: ops.OpList)-> list:
     def _get_var(s):
-        if re.match(r'~|\$[A-Za-z0-9_]$', s) is not None:
+        if re.match(var_format, s) is not None:
             return oplist[s]
         else:
             raise KeyError
