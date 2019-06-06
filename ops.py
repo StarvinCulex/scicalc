@@ -10,6 +10,8 @@ class OpList:
     @staticmethod
     def __analyse_list(x):
         if isinstance(x, mpmath.matrix):
+            if x.cols == 1:
+                x = x.transpose()
             if x.rows == 1:
                 x = x.transpose()
             assert x.cols == 1, 'must one line'
@@ -20,6 +22,12 @@ class OpList:
     def __analyse_pair(x):
         r = OpList.__analyse_list(x)
         assert len(r) == 2, 'must a pair'
+        return r
+
+    @staticmethod
+    def __analyse_triple(x):
+        r = OpList.__analyse_list(x)
+        assert len(r) == 3, 'must a triple'
         return r
 
     @staticmethod
@@ -45,18 +53,34 @@ class OpList:
     def __init__(self):
         self._drg_mode = 'deg'
         self._mem = dict()
+        self._dms = False
 
     def __getitem__(self, key):
+        if str(key) != '@' and not str(key).startswith('$'):
+            raise ValueError('no variable named %s' % key)
         try:
-            return self._mem[key]
+            return self._mem[str(key)]
         except KeyError:
             return mpmath.mpf(0)
 
     def __setitem__(self, key, val):
-        self._mem[key] = val
+        self._mem[str(key)] = val
 
     def num_to_string(self, num):
-        return str(num)
+        if num is None:
+            raise TypeError
+        if self._dms:
+            d = int(num)
+            m = int(num * 60) % 60
+            s = int(num * 3600) % 60
+            r = num * 3600 - int(num * 3600)
+            return "%s°%02s'%02s\"%s" % (d, m, s, str(r)[str(r).find('.'):])
+        else:
+            return str(num)
+
+    def dms(self):
+        self._dms = not self._dms
+        return self._dms
 
     @property
     def drg(self):
@@ -104,6 +128,7 @@ class OpList:
                                    ('exp',   'e^',    mpmath.exp),
                                    ('floor', 'floor', mpmath.floor),
                                    ('ceil',  'ceil',  mpmath.ceil),
+                                   ('det',   'det',   mpmath.det),
                                    ]
                    },
                 'pcn': calc2.UnaryOperator('a%',
@@ -222,10 +247,24 @@ class OpList:
                     return _mul(a.transpose(), b)
             return _mul(a, b)
 
+        def _cross(a, b):
+            try:
+                la = OpList.__analyse_triple(a)
+                lb = OpList.__analyse_triple(b)
+                r = [la[1]*lb[2] - la[2]*lb[1], la[2]*lb[0] - la[0]*lb[2], la[0]*lb[1] - la[1]*lb[0]]
+                if a.cols == b.cols == 1:
+                    return mpmath.matrix([[i] for i in r])
+                if a.rows == b.rows == 1:
+                    return mpmath.matrix([r])
+                else:
+                    raise Exception
+            except:
+                return _mul(a, b)
+
         return {'+': calc2.BinaryOperator('+', lambda x, y: x + y, 30),
                 '-': calc2.BinaryOperator('-', lambda x, y: x - y, 30),
                 '*': calc2.BinaryOperator('*', _dot, 31),
-                'x': calc2.BinaryOperator('*', _mul, 31),
+                'x': calc2.BinaryOperator('*', _cross, 31),
                 '/': calc2.BinaryOperator('/', lambda x, y: x / y, 31),
                 'mod': calc2.BinaryOperator('mod', mpmath.fmod, 31),
                 '^': calc2.BinaryOperator('^', mpmath.power, 32),
@@ -261,8 +300,47 @@ class OpList:
     def head(self):
         return self.get_unary('+')
 
-    def string_to_real(self, s):
-        return mpmath.mpf(s)
+    def string_to_real(self, num):
+        def _real2dms(ss):
+            ss = str(ss)
+            d, m, s, r = 0, 0, 0, 0
+            d_at = ss.find('`')
+            if d_at == -1:
+                d_at = ss.find('°')
+            if d_at != -1:
+                d = int(ss[:d_at])
+            m_at = ss.find("'")
+            if m_at != -1:
+                if d_at != -1 and m_at <= d_at:
+                    raise ValueError('not a dms format')
+                else:
+                    m = int(ss[max(0, d_at + 1):m_at])
+                    if m >= 60 or m < 0:
+                        raise ValueError('not a dms format')
+            s_at = ss.find('"')
+            if s_at != -1:
+                if m_at != -1 and s_at <= m_at:
+                    raise ValueError('not a dms format')
+                else:
+                    s = int(ss[max(0, m_at + 1):s_at])
+                    if s > 60 or m % 1 != 0:
+                        raise ValueError('not a dms format')
+                    if s_at != len(ss) - 1:
+                        r = int(ss[s_at + 1:])
+                        if s % 1 != 0:
+                            raise ValueError('not a dms format')
+            if d_at == m_at == s_at == -1:
+                raise ValueError('not a dms format')
+            return (mpmath.mpf(d) +
+                    mpmath.mpf(m) / 60 +
+                    mpmath.mpf(s) / 3600 +
+                    mpmath.mpf(r) / 3600 / 10**(r / 10 + 1))
+
+        try:
+            return mpmath.mpf(num)
+        except ValueError:
+            return _real2dms(num)
+
 
     def is_number(self, n):
         return isinstance(n, mpmath.mpf) or isinstance(n, mpmath.mpc)

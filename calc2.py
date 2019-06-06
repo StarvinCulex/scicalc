@@ -1,3 +1,11 @@
+class AnalyseError(Exception):
+    def __init__(self, info='syntax error'):
+        self._info = info
+
+    def __str__(self):
+        return self._info
+
+
 class Operator:
     def __init__(self, display, out_stack_rank, in_stack_rank):
         self.in_stack_rank = in_stack_rank
@@ -60,7 +68,7 @@ class LeftBracket(Operator):
         Operator.__init__(self, '(', -99, 99)
 
     def calc_from_stack(self, _, __):
-        raise TypeError
+        raise AnalyseError
 
 
 class RightBracket(Operator):
@@ -68,7 +76,7 @@ class RightBracket(Operator):
         Operator.__init__(self, ')', 100, -98)
 
     def calc_from_stack(self, _, stack_operators: list):
-        assert isinstance(stack_operators.pop(), LeftBracket), ''
+        assert isinstance(stack_operators.pop(), LeftBracket), 'syntax error'
 
 
 class __EndOperator(Operator):
@@ -76,7 +84,7 @@ class __EndOperator(Operator):
         Operator.__init__(self, '=', 'impossible to get here', -100)
 
     def calc_from_stack(self, stack_operands: list, stack_operators: list):
-        raise TypeError
+        raise AnalyseError
 
 
 __end_op = __EndOperator()
@@ -93,18 +101,21 @@ def get_right_bracket_op():
 
 
 def calc(ops: list):
-    ops.append(__end_op)
-    stack_operators = list()
-    stack_operands = list()
-    if not isinstance(ops[0], Operator):
-        stack_operands.append(ops.pop(0))
-    for operator in ops:
-        if isinstance(operator, Operator):
-            while len(stack_operators) != 0 and stack_operators[-1] >= operator:
-                stack_operators.pop().calc_from_stack(stack_operands, stack_operators)
-            stack_operators.append(operator)
-        else:
-            stack_operands.append(operator)
-    assert len(stack_operands) == 1
-    return stack_operands[0]
+    try:
+        ops.append(__end_op)
+        stack_operators = list()
+        stack_operands = list()
+        if not isinstance(ops[0], Operator):
+            stack_operands.append(ops.pop(0))
+        for operator in ops:
+            if isinstance(operator, Operator):
+                while len(stack_operators) != 0 and stack_operators[-1] >= operator:
+                    stack_operators.pop().calc_from_stack(stack_operands, stack_operators)
+                stack_operators.append(operator)
+            else:
+                stack_operands.append(operator)
+        assert len(stack_operands) == 1, 'syntax error'
+        return stack_operands[0]
+    except IndexError:
+        raise AnalyseError
 
