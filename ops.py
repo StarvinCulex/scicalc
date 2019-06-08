@@ -5,7 +5,6 @@ mpmath.mp.dps = 50
 mpmath.mp.frac = int(mpmath.mp.dps * 10 / 3)
 
 
-
 class OpList:
     @staticmethod
     def __analyse_list(x):
@@ -54,6 +53,7 @@ class OpList:
         self._drg_mode = 'deg'
         self._mem = dict()
         self._dms = False
+        self._prec = 50
 
     def __getitem__(self, key):
         if str(key) != '@' and not str(key).startswith('$'):
@@ -66,17 +66,31 @@ class OpList:
     def __setitem__(self, key, val):
         self._mem[str(key)] = val
 
-    def num_to_string(self, num):
+    @property
+    def prec(self):
+        return self._prec
+
+    @prec.setter
+    def prec(self, value):
+        if 1 <= value <= 50:
+            self._prec = value
+        else:
+            raise ValueError('precision not available')
+
+    def num_to_string(self, num, limit=None):
+        if limit is None:
+            limit = self._prec
         if num is None:
             raise TypeError
-        if self._dms:
+        if isinstance(num, mpmath.mpf) and self._dms:
             d = int(num)
             m = int(num * 60) % 60
             s = int(num * 3600) % 60
             r = num * 3600 - int(num * 3600)
-            return "%s°%02s'%02s\"%s" % (d, m, s, str(r)[str(r).find('.'):])
+            return ("%s°%02s'%02s\"%s" % (d, m, s, (str(r)[str(r).find('.') + 1:]) if str(r).find('e') == -1 else ''
+                                          ))[:limit]
         else:
-            return str(num)
+            return mpmath.nstr(num, limit)
 
     def dms(self):
         self._dms = not self._dms
@@ -114,6 +128,7 @@ class OpList:
         return {'i': mpmath.mpc(1j),
                 'j': mpmath.mpc(1j),
                 'pi': mpmath.mpf(mpmath.pi),
+                'π': mpmath.mpf(mpmath.pi),
                 'e': mpmath.mpf(mpmath.e),
                 }[item]
 
@@ -123,6 +138,7 @@ class OpList:
                                    ('fac',   'fac',    mpmath.factorial),
                                    ('sqrt',  'sqrt',  mpmath.sqrt),
                                    ('_/',    'sqrt',  mpmath.sqrt),
+                                   ('√',     'sqrt',  mpmath.sqrt),
                                    ('ln',    'ln',    mpmath.ln),
                                    ('lg',    'log10', mpmath.log10),
                                    ('exp',   'e^',    mpmath.exp),
@@ -264,12 +280,14 @@ class OpList:
         return {'+': calc2.BinaryOperator('+', lambda x, y: x + y, 30),
                 '-': calc2.BinaryOperator('-', lambda x, y: x - y, 30),
                 '*': calc2.BinaryOperator('*', _dot, 31),
-                'x': calc2.BinaryOperator('*', _cross, 31),
+                'x': calc2.BinaryOperator('x', _cross, 31),
+                '×': calc2.BinaryOperator('x', _cross, 31),
                 '/': calc2.BinaryOperator('/', lambda x, y: x / y, 31),
                 'mod': calc2.BinaryOperator('mod', mpmath.fmod, 31),
                 '^': calc2.BinaryOperator('^', mpmath.power, 32),
                 'rt': calc2.BinaryOperator('y_/x', lambda y, x: mpmath.root(x, y), 32),
                 '_/': calc2.BinaryOperator('y_/x', lambda y, x: mpmath.root(x, y), 32),
+                '√':  calc2.BinaryOperator('y_/x', lambda y, x: mpmath.root(x, y), 32),
                 'log': calc2.BinaryOperator('blogA', lambda b, a: OpList.__log(b, a), 32),
                 'P': calc2.BinaryOperator('nPr',
                                           lambda n, r: mpmath.factorial(n) / mpmath.factorial(n - r),
